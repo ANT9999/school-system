@@ -5,17 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ប្រព័ន្ធគ្រប់គ្រងកាលវិភាគស្វ័យប្រវត្តិ Pro (Online Cloud)</title>
   
-  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Google Fonts Khmer -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Firebase SDK (v9 Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -43,7 +40,7 @@
           <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
             ប្រព័ន្ធគ្រប់គ្រងកាលវិភាគស្វ័យប្រវត្តិ
             <span id="sync-status-badge" class="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-normal flex items-center gap-1">
-              <i class="fa-solid fa-cloud"></i> Online Sync
+              <i class="fa-solid fa-cloud"></i> Synced
             </span>
           </h1>
           <p class="text-xs text-indigo-200">ប្រព័ន្ធបញ្ចូល និងកែទិន្នន័យរួមគ្នាលើ Cloud • Update ផ្ទាល់ភ្លាមៗ</p>
@@ -51,26 +48,34 @@
       </div>
       
       <div class="flex flex-wrap items-center gap-2">
-        <button onclick="openTimeSettingModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
+        <!-- ប៊ូតុង Admin Login / Logout -->
+        <button onclick="toggleAdminMode()" id="btn-admin-toggle" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow border border-slate-600">
+          <i id="admin-lock-icon" class="fa-solid fa-lock"></i>
+          <span id="admin-status-text">Admin Login</span>
+        </button>
+
+        <!-- ប៊ូតុងរៀបចំ (បង្ហាញតែពេល Login ជា Admin) -->
+        <button id="btn-time-setting" onclick="openTimeSettingModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow hidden">
           <i class="fa-solid fa-clock"></i> កែម៉ោងសិក្សា
         </button>
 
-        <button onclick="cleanAndResetAllData()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow" title="Reset ទិន្នន័យ">
+        <button id="btn-reset-data" onclick="cleanAndResetAllData()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow hidden" title="Reset ទិន្នន័យ">
           <i class="fa-solid fa-broom"></i> Reset ទិន្នន័យ
         </button>
 
-        <button onclick="downloadSampleExcel()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
-          <i class="fa-solid fa-download"></i> គំរូ Excel
-        </button>
-
-        <label class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow cursor-pointer">
+        <label id="btn-upload-excel" class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow cursor-pointer hidden">
           <i class="fa-solid fa-file-excel text-sm"></i>
           <span>Upload Excel</span>
           <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
         </label>
 
-        <button onclick="openAddTeacherModal()" class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-xs font-bold rounded-lg border border-indigo-500 transition flex items-center gap-1.5 shadow">
+        <button id="btn-add-teacher" onclick="openAddTeacherModal()" class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-xs font-bold rounded-lg border border-indigo-500 transition flex items-center gap-1.5 shadow hidden">
           <i class="fa-solid fa-user-plus text-amber-300"></i> បន្ថែមគ្រូ
+        </button>
+
+        <!-- ប៊ូតុងដែលគ្រប់គ្នាអាចប្រើបាន -->
+        <button onclick="downloadSampleExcel()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-download"></i> គំរូ Excel
         </button>
 
         <button onclick="exportToExcel()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
@@ -236,7 +241,7 @@
             </h2>
             <p class="text-xs text-slate-500">កំណត់កម្រិតថ្នាក់ និងមុខវិជ្ជាជំនាញជូនគ្រូម្នាក់ៗ</p>
           </div>
-          <button onclick="openAddTeacherModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-2 shadow">
+          <button id="btn-add-teacher-tab" onclick="openAddTeacherModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-2 shadow hidden">
             <i class="fa-solid fa-plus"></i> បន្ថែមគ្រូថ្មី
           </button>
         </div>
@@ -507,7 +512,6 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl transform translate-y-20 opacity-0 transition duration-300 z-50 flex items-center gap-2">
     <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
     <span id="toast-msg">សារជូនដំណឹង</span>
@@ -515,7 +519,7 @@
 
   <script>
     // ==========================================
-    // ១. កំណត់រចនាសម្ព័ន្ធ Firebase របស់លោកគ្រូ
+    // ១. កំណត់រចនាសម្ព័ន្ធ Firebase
     // ==========================================
     const firebaseConfig = {
       apiKey: "AIzaSyCQ3Lv2JxxoDFa0C50C5c2hM85VJ9LiNyc",
@@ -523,14 +527,71 @@
       projectId: "school-system-ahfw",
       storageBucket: "school-system-ahfw.firebasestorage.app",
       messagingSenderId: "449016998134",
-      appId: "1:449016998134:web:ff38ec1e01035abcbaa4d7",
-      measurementId: "G-H3W1WW3NQL"
+      appId: "1:449016998134:web:30cdf7a09393387bbaa4d7",
+      measurementId: "G-H7S3NDW7PE"
     };
 
-    // Initialize Firebase & Cloud Firestore
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const TIMETABLE_DOC = db.collection("school_data").doc("timetable_master");
+
+    // ==========================================
+    // ២. ប្រព័ន្ធគ្រប់គ្រងសិទ្ធិ ADMIN (PIN)
+    // ==========================================
+    const ADMIN_PIN = "1234"; // លោកគ្រូអាចផ្លាស់ប្តូរលេខកូដសម្ងាត់នេះបាន
+    let isAdmin = false;
+
+    function toggleAdminMode() {
+      if (isAdmin) {
+        if (confirm("តើលោកគ្រូចង់ចាកចេញពី Admin Mode (Logout) មែនទេ?")) {
+          isAdmin = false;
+          updateAdminUI();
+          showToast("បានចាកចេញពី Admin Mode!");
+        }
+      } else {
+        const pin = prompt("សូមបញ្ចូលលេខកូដសម្ងាត់ Admin ដើម្បីកែសម្រួល៖");
+        if (pin === ADMIN_PIN) {
+          isAdmin = true;
+          updateAdminUI();
+          showToast("ចូលជា Admin ជោគជ័យ! អ្នកអាចកែសម្រួលទិន្នន័យបាន។");
+        } else if (pin !== null) {
+          alert("លេខកូដសម្ងាត់មិនត្រឹមត្រូវទេ!");
+        }
+      }
+    }
+
+    function updateAdminUI() {
+      const btnToggle = document.getElementById('btn-admin-toggle');
+      const lockIcon = document.getElementById('admin-lock-icon');
+      const statusText = document.getElementById('admin-status-text');
+
+      if (isAdmin) {
+        btnToggle.className = "px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow";
+        lockIcon.className = "fa-solid fa-lock-open";
+        statusText.innerText = "Admin (Logged In)";
+      } else {
+        btnToggle.className = "px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow border border-slate-600";
+        lockIcon.className = "fa-solid fa-lock";
+        statusText.innerText = "Admin Login";
+      }
+
+      const adminElements = [
+        document.getElementById('btn-time-setting'),
+        document.getElementById('btn-reset-data'),
+        document.getElementById('btn-upload-excel'),
+        document.getElementById('btn-add-teacher'),
+        document.getElementById('btn-add-teacher-tab')
+      ];
+
+      adminElements.forEach(el => {
+        if (el) {
+          if (isAdmin) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        }
+      });
+
+      renderManageTeachersTable();
+    }
 
     const DEFAULT_SECONDARY_MORNING = [
       { num: "១", time: "07:30 - 08:20", label: "ម៉ោងទី ១ (ព្រឹក)" },
@@ -667,10 +728,8 @@
       return (appData.records || []).filter(r => (r.teacher || '').trim() === teacherName.trim() && r.subject_kh !== 'ទំនេរ').length;
     }
 
-    // ==========================================
-    // ២. ប្រព័ន្ធ Sync លើ Cloud តាមរយៈ Firestore
-    // ==========================================
     window.addEventListener('DOMContentLoaded', () => {
+      updateAdminUI();
       listenToFirestoreChanges();
     });
 
@@ -691,9 +750,7 @@
           }
 
           refreshAllUI();
-          showToast("ទិន្នន័យបានធ្វើសមកាលកម្មលើ Cloud (Synced)!");
         } else {
-          // ប្រសិនបើមិនទាន់មានទិន្នន័យលើ Cloud ទេ ត្រូវ Push ចូលជាលើកដំបូង
           saveAllToFirestore();
         }
       }, (error) => {
@@ -1127,6 +1184,10 @@
     }
 
     function openTimeSettingModal() {
+      if (!isAdmin) {
+        showToast("មានតែ Admin ទើបអាចកែម៉ោងសិក្សាបាន!", true);
+        return;
+      }
       loadLevelTimeInputs();
       document.getElementById('timeSettingModal').classList.remove('hidden');
     }
@@ -1201,6 +1262,11 @@
     }
 
     function openEditModal(className, day, time, subject, teacher) {
+      if (!isAdmin) {
+        showToast("មានតែ Admin ទើបអាចកែសម្រួលបាន! សូមចុច Admin Login ខាងលើ។", true);
+        return;
+      }
+
       let rec = (appData.records || []).find(r => r.class === className && r.day === day && cleanTimeStr(r.time) === cleanTimeStr(time));
       if (!rec) {
         rec = {
@@ -1468,7 +1534,7 @@
                 ${group.map(g => `
                   <div class="p-2.5 bg-rose-50/60 rounded-lg border border-rose-100 flex justify-between items-center text-xs">
                     <div><strong>ថ្នាក់ ${g.class}</strong>: ${normalizeSubjectName(g.subject_kh)}</div>
-                    <button onclick="openEditModal('${g.class}', '${day}', '${time}', '${g.subject_kh}', '${tName}')" class="px-2 py-1 bg-white hover:bg-rose-600 hover:text-white text-rose-600 border border-rose-300 rounded font-semibold text-[11px] transition">កែសម្រួល</button>
+                    ${isAdmin ? `<button onclick="openEditModal('${g.class}', '${day}', '${time}', '${g.subject_kh}', '${tName}')" class="px-2 py-1 bg-white hover:bg-rose-600 hover:text-white text-rose-600 border border-rose-300 rounded font-semibold text-[11px] transition">កែសម្រួល</button>` : ''}
                   </div>
                 `).join('')}
               </div>
@@ -1487,7 +1553,7 @@
       const teachersList = (appData.teachers || []).filter(t => !isInvalidTeacherName(t));
 
       if (teachersList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">មិនទាន់មានឈ្មោះគ្រូនៅឡើយទេ។ សូមចុចប៊ូតុង «+ បន្ថែមគ្រូថ្មី» ខាងលើ។</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">មិនទាន់មានឈ្មោះគ្រូនៅឡើយទេ។</td></tr>`;
         return;
       }
 
@@ -1504,18 +1570,22 @@
         const tdAction = document.createElement('td');
         tdAction.className = "p-3 border-b text-center space-x-1";
 
-        const btnEdit = document.createElement('button');
-        btnEdit.className = "px-2.5 py-1 bg-slate-100 hover:bg-purple-600 hover:text-white text-slate-700 border border-slate-300 rounded font-semibold text-xs transition";
-        btnEdit.innerHTML = `<i class="fa-solid fa-pen"></i> កែសម្រួល`;
-        btnEdit.onclick = () => openEditTeacherModalDirect(t);
+        if (isAdmin) {
+          const btnEdit = document.createElement('button');
+          btnEdit.className = "px-2.5 py-1 bg-slate-100 hover:bg-purple-600 hover:text-white text-slate-700 border border-slate-300 rounded font-semibold text-xs transition";
+          btnEdit.innerHTML = `<i class="fa-solid fa-pen"></i> កែសម្រួល`;
+          btnEdit.onclick = () => openEditTeacherModalDirect(t);
 
-        const btnDelete = document.createElement('button');
-        btnDelete.className = "px-2 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 border border-rose-300 rounded font-semibold text-xs transition";
-        btnDelete.innerHTML = `<i class="fa-solid fa-trash"></i> លុប`;
-        btnDelete.onclick = () => removeTeacherGlobally(t);
+          const btnDelete = document.createElement('button');
+          btnDelete.className = "px-2 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 border border-rose-300 rounded font-semibold text-xs transition";
+          btnDelete.innerHTML = `<i class="fa-solid fa-trash"></i> លុប`;
+          btnDelete.onclick = () => removeTeacherGlobally(t);
 
-        tdAction.appendChild(btnEdit);
-        tdAction.appendChild(btnDelete);
+          tdAction.appendChild(btnEdit);
+          tdAction.appendChild(btnDelete);
+        } else {
+          tdAction.innerHTML = `<span class="text-slate-400 text-xs italic">មើលប៉ុណ្ណោះ</span>`;
+        }
 
         tr.innerHTML = `
           <td class="p-3 border-b text-slate-500 font-medium text-center">${idx + 1}</td>
@@ -1531,6 +1601,10 @@
     }
 
     function openAddTeacherModal() {
+      if (!isAdmin) {
+        showToast("មានតែ Admin ទើបអាចបន្ថែមគ្រូបាន!", true);
+        return;
+      }
       isEditingExistingTeacher = false;
       originalEditingTeacherName = "";
       document.getElementById('teacherModalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-amber-300"></i> បន្ថែមគ្រូថ្មី';
@@ -1541,6 +1615,10 @@
     }
 
     function openEditTeacherModalDirect(tName) {
+      if (!isAdmin) {
+        showToast("មានតែ Admin ទើបអាចកែប្រែបាន!", true);
+        return;
+      }
       isEditingExistingTeacher = true;
       originalEditingTeacherName = tName;
       document.getElementById('teacherModalTitle').innerHTML = '<i class="fa-solid fa-user-pen text-amber-300"></i> កែសម្រួលព័ត៌មានគ្រូ';
@@ -1768,6 +1846,11 @@
     }
 
     function handleExcelUpload(event) {
+      if (!isAdmin) {
+        showToast("មានតែ Admin ទើបអាច Upload Excel បាន!", true);
+        return;
+      }
+
       const file = event.target.files[0];
       if (!file) return;
 
@@ -1852,6 +1935,10 @@
     }
 
     async function cleanAndResetAllData() {
+      if (!isAdmin) {
+        showToast("មានតែ Admin ទើបអាច Reset បាន!", true);
+        return;
+      }
       if (!confirm("តើលោកគ្រូចង់ Reset ប្រព័ន្ធ និងសម្អាតទិន្នន័យលើ Cloud ឡើងវិញមែនទេ?")) return;
       appData.records = [];
       await saveAllToFirestore();
