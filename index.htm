@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ប្រព័ន្ធគ្រប់គ្រងកាលវិភាគស្វ័យប្រវត្តិ Pro (Online Cloud)</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts Khmer -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDK (v9 Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { font-family: 'Kantumruy Pro', sans-serif; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; }
+      .card-box { box-shadow: none !important; border: 1px solid #ccc !important; }
+    }
+    .grid-cell { cursor: pointer; user-select: none; transition: background-color 0.1s ease; }
+    .grid-cell:hover { filter: brightness(0.96); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-20 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-700 flex items-center justify-center text-amber-300 font-bold text-xl shadow-inner">
+          <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
+            ប្រព័ន្ធគ្រប់គ្រងកាលវិភាគស្វ័យប្រវត្តិ
+            <span id="sync-status-badge" class="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-normal flex items-center gap-1">
+              <i class="fa-solid fa-cloud"></i> Online Sync
+            </span>
+          </h1>
+          <p class="text-xs text-indigo-200">ប្រព័ន្ធបញ្ចូល និងកែទិន្នន័យរួមគ្នាលើ Cloud • Update ផ្ទាល់ភ្លាមៗ</p>
+        </div>
+      </div>
+      
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="openTimeSettingModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-clock"></i> កែម៉ោងសិក្សា
+        </button>
+
+        <button onclick="cleanAndResetAllData()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow" title="Reset ទិន្នន័យ">
+          <i class="fa-solid fa-broom"></i> Reset ទិន្នន័យ
+        </button>
+
+        <button onclick="downloadSampleExcel()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-download"></i> គំរូ Excel
+        </button>
+
+        <label class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow cursor-pointer">
+          <i class="fa-solid fa-file-excel text-sm"></i>
+          <span>Upload Excel</span>
+          <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+        </label>
+
+        <button onclick="openAddTeacherModal()" class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-xs font-bold rounded-lg border border-indigo-500 transition flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-user-plus text-amber-300"></i> បន្ថែមគ្រូ
+        </button>
+
+        <button onclick="exportToExcel()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-file-export"></i> Export Excel
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <div class="bg-white border-b border-slate-200 shadow-sm sticky top-[61px] z-10 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between overflow-x-auto">
+      <div class="flex space-x-1 sm:space-x-2 py-2">
+        <button onclick="switchTab('tab-class')" id="btn-tab-class" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 text-teal-700 bg-teal-50 border border-teal-200">
+          <i class="fa-solid fa-users-rectangle text-teal-600"></i>
+          <span>កាលវិភាគតាមថ្នាក់ (Class View)</span>
+        </button>
+
+        <button onclick="switchTab('tab-teacher')" id="btn-tab-teacher" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-chalkboard-user text-indigo-600"></i>
+          <span>កាលវិភាគគ្រូ (Teacher View)</span>
+        </button>
+
+        <button onclick="switchTab('tab-manage-teachers')" id="btn-tab-manage-teachers" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-address-book text-purple-600"></i>
+          <span>ថ្នាក់និងមុខវិជ្ជាដែលត្រូវបង្រៀន</span>
+        </button>
+
+        <button onclick="switchTab('tab-clash')" id="btn-tab-clash" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-rose-600 hover:bg-rose-50 hidden">
+          <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+          <span>បញ្ជីជាន់ម៉ោងគ្នា</span>
+          <span id="clash-badge" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+        </button>
+
+        <button onclick="switchTab('tab-workload')" id="btn-tab-workload" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-chart-pie text-amber-600"></i>
+          <span>ម៉ោងបង្រៀនរបស់គ្រូ (Workload)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
+
+    <!-- TAB 1: CLASS VIEW -->
+    <section id="tab-class" class="tab-content block space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 no-print">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">កម្រិតសិក្សា៖</span>
+            <div class="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs font-medium">
+              <button onclick="setGradeFilterAndRender('ALL')" id="btn-grp-ALL" class="grade-filter-btn px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">ទាំងអស់</button>
+              <button onclick="setGradeFilterAndRender('1-6')" id="btn-grp-1-6" class="grade-filter-btn px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">បឋម (១-៦)</button>
+              <button onclick="setGradeFilterAndRender('7-8')" id="btn-grp-7-8" class="grade-filter-btn px-3 py-1 rounded-md bg-teal-600 text-white font-bold transition shadow-sm">ថ្នាក់ ៧-៨</button>
+              <button onclick="setGradeFilterAndRender('9-10')" id="btn-grp-9-10" class="grade-filter-btn px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">ថ្នាក់ ៩-១០</button>
+              <button onclick="setGradeFilterAndRender('11-12')" id="btn-grp-11-12" class="grade-filter-btn px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">ថ្នាក់ ១១-១២</button>
+            </div>
+          </div>
+          
+          <div class="text-xs text-slate-500 flex items-center gap-3">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> ក្រហម = ជាន់គ្នា</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> លឿង = ខ្វះគ្រូ</span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-3 flex items-center gap-2">
+          <span class="text-xs font-bold text-slate-700 whitespace-nowrap"><i class="fa-solid fa-school text-teal-600 mr-1"></i> ជ្រើសរើសថ្នាក់៖</span>
+          <div id="class-buttons-container" class="flex flex-wrap items-center gap-1.5 overflow-x-auto py-1"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 card-box">
+        <div class="border-b border-slate-200 pb-4 mb-4 flex justify-between items-center">
+          <div>
+            <span class="text-xs font-bold uppercase text-teal-600 tracking-wider">កាលវិភាគប្រចាំថ្នាក់</span>
+            <h2 id="class-view-name" class="text-2xl font-bold text-slate-800">កាលវិភាគថ្នាក់</h2>
+          </div>
+          <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg no-print">
+            <i class="fa-solid fa-print"></i> បោះពុម្ព
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-center border-collapse">
+            <thead>
+              <tr class="bg-slate-800 text-white text-sm">
+                <th class="p-3 border border-slate-700 w-44">ម៉ោងសិក្សា / Time</th>
+                <th class="p-3 border border-slate-700">ចន្ទ (Mon)</th>
+                <th class="p-3 border border-slate-700">អង្គារ (Tue)</th>
+                <th class="p-3 border border-slate-700">ពុធ (Wed)</th>
+                <th class="p-3 border border-slate-700">ព្រហស្បតិ៍ (Thu)</th>
+                <th class="p-3 border border-slate-700">សុក្រ (Fri)</th>
+              </tr>
+            </thead>
+            <tbody id="class-timetable-body" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: TEACHER VIEW -->
+    <section id="tab-teacher" class="tab-content hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 no-print">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-bold text-slate-500 uppercase tracking-wider"><i class="fa-solid fa-book-open text-indigo-500 mr-1"></i> មុខវិជ្ជា៖</span>
+          <div id="teacher-subject-buttons-container" class="flex flex-wrap items-center gap-1.5 py-1"></div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <label class="font-bold text-xs text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-user-tie text-indigo-600 text-sm"></i> ឈ្មោះគ្រូ៖
+            </label>
+            <select id="select-teacher" onchange="renderTeacherTimetable()" class="bg-indigo-50 border border-indigo-300 text-indigo-950 text-sm font-bold rounded-lg p-2.5 min-w-[240px] focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"></select>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="shareViaTelegram()" class="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-lg transition flex items-center gap-2 shadow-sm">
+              <i class="fa-brands fa-telegram text-base"></i> ផ្ញើតាម Telegram
+            </button>
+            <button onclick="copyTeacherScheduleText()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-2 shadow-sm">
+              <i class="fa-solid fa-copy"></i> ចម្លងជាអក្សរ
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="teacher-schedule-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 card-box">
+        <div class="border-b border-slate-200 pb-4 mb-4 flex flex-wrap justify-between items-end gap-3">
+          <div>
+            <div class="text-xs uppercase font-bold text-indigo-600 tracking-wider">កាលវិភាគបង្រៀនផ្ទាល់ខ្លួន</div>
+            <h2 id="teacher-view-name" class="text-2xl font-bold text-slate-800">ឈ្មោះលោកគ្រូ/អ្នកគ្រូ</h2>
+            <p id="teacher-view-sub" class="text-xs text-slate-500 mt-1"></p>
+          </div>
+          <div id="teacher-view-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">នៅសល់ម៉ោង</div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-center border-collapse">
+            <thead>
+              <tr class="bg-indigo-900 text-white text-sm">
+                <th class="p-3 border border-indigo-800 w-44">ម៉ោងសិក្សា / Time</th>
+                <th class="p-3 border border-indigo-800">ចន្ទ (Mon)</th>
+                <th class="p-3 border border-indigo-800">អង្គារ (Tue)</th>
+                <th class="p-3 border border-indigo-800">ពុធ (Wed)</th>
+                <th class="p-3 border border-indigo-800">ព្រហស្បតិ៍ (Thu)</th>
+                <th class="p-3 border border-indigo-800">សុក្រ (Fri)</th>
+              </tr>
+            </thead>
+            <tbody id="teacher-timetable-body" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: MANAGE TEACHERS -->
+    <section id="tab-manage-teachers" class="tab-content space-y-4 hidden">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-users-gear text-purple-600"></i> បញ្ជីឈ្មោះគ្រូ មុខវិជ្ជា & កម្រិតថ្នាក់ដែរត្រូវបង្រៀន
+            </h2>
+            <p class="text-xs text-slate-500">កំណត់កម្រិតថ្នាក់ និងមុខវិជ្ជាជំនាញជូនគ្រូម្នាក់ៗ</p>
+          </div>
+          <button onclick="openAddTeacherModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-2 shadow">
+            <i class="fa-solid fa-plus"></i> បន្ថែមគ្រូថ្មី
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="bg-slate-100 text-slate-700 uppercase font-bold">
+              <tr>
+                <th class="p-3 border-b w-12 text-center">ល.រ</th>
+                <th class="p-3 border-b">ឈ្មោះលោកគ្រូ/អ្នកគ្រូ</th>
+                <th class="p-3 border-b">កម្រិតថ្នាក់ដែរត្រូវបង្រៀន</th>
+                <th class="p-3 border-b">មុខវិជ្ជាជំនាញ</th>
+                <th class="p-3 border-b text-center">ម៉ោងបង្រៀន</th>
+                <th class="p-3 border-b text-center w-36">សកម្មភាព</th>
+              </tr>
+            </thead>
+            <tbody id="manage-teachers-tbody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: CLASH -->
+    <section id="tab-clash" class="tab-content hidden space-y-4">
+      <div id="clash-alert-box" class="bg-gradient-to-r from-rose-500 to-red-600 rounded-2xl p-5 text-white shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hidden">
+        <div>
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation"></i> របាយការណ៍ម៉ោងជាន់គ្នា (Conflict Auditor)
+          </h2>
+          <p class="text-sm text-rose-100 mt-1">ប្រព័ន្ធបានរកឃើញករណីគ្រូដែលមានម៉ោងបង្រៀនលើសពី ១ ថ្នាក់ក្នុងពេលតែមួយ។</p>
+        </div>
+        <div class="bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl text-center min-w-[120px]">
+          <div class="text-2xl font-extrabold" id="total-conflicts-num">0</div>
+          <div class="text-xs uppercase tracking-wider text-rose-100">ករណីជាន់ម៉ោង</div>
+        </div>
+      </div>
+      <div id="conflicts-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- TAB 5: WORKLOAD -->
+    <section id="tab-workload" class="tab-content space-y-4 hidden">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-scale-balanced text-amber-500"></i> បន្ទុកម៉ោងបង្រៀនរបស់គ្រូម្នាក់ៗ
+          </h2>
+          <input type="text" id="workload-search" oninput="renderWorkloadTable()" placeholder="ស្វែងរកឈ្មោះគ្រូ..." class="text-xs p-2 border border-slate-300 rounded-lg w-48">
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="bg-slate-100 text-slate-700 uppercase font-bold">
+              <tr>
+                <th class="p-3 border-b text-center">ល.រ</th>
+                <th class="p-3 border-b">ឈ្មោះគ្រូ</th>
+                <th class="p-3 border-b">កម្រិតថ្នាក់បង្រៀន</th>
+                <th class="p-3 border-b">មុខវិជ្ជាជំនាញ</th>
+                <th class="p-3 border-b text-center">ម៉ោងបង្រៀនសរុប</th>
+                <th class="p-3 border-b">កម្រិតបន្ទុក</th>
+                <th class="p-3 border-b">ថ្នាក់ទទួលបន្ទុក</th>
+              </tr>
+            </thead>
+            <tbody id="workload-table-body" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: TIME SLOTS SETTINGS -->
+  <div id="timeSettingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-200">
+      <div class="bg-indigo-900 text-white px-5 py-4 flex justify-between items-center">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i class="fa-solid fa-clock text-amber-400"></i> កំណត់ម៉ោងសិក្សា (Time Slots Setting)
+        </h3>
+        <button onclick="closeTimeSettingModal()" class="text-indigo-200 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+        <div class="flex items-center gap-3 bg-slate-50 p-2.5 rounded-lg border">
+          <span class="text-xs font-bold text-slate-700">ជ្រើសរើសកម្រិតកែម៉ោង៖</span>
+          <select id="time-setting-level-select" onchange="loadLevelTimeInputs()" class="text-xs p-1.5 border rounded-md font-bold text-indigo-700 bg-white">
+            <option value="PRIMARY">កម្រិតបឋមសិក្សា (ថ្នាក់ ១-៦)</option>
+            <option value="SECONDARY" selected>កម្រិតមធ្យមសិក្សា (ថ្នាក់ ៧-១២)</option>
+          </select>
+        </div>
+
+        <div class="border rounded-xl p-3 space-y-2">
+          <h4 class="text-xs font-bold text-sky-800 flex items-center gap-1">
+            <i class="fa-solid fa-sun text-amber-500"></i> វេនពេលព្រឹក (Morning Slots)
+          </h4>
+          <div id="morning-time-inputs" class="space-y-2"></div>
+        </div>
+
+        <div class="border rounded-xl p-3 space-y-2">
+          <h4 class="text-xs font-bold text-amber-800 flex items-center gap-1">
+            <i class="fa-solid fa-cloud-sun text-orange-500"></i> វេនពេលរសៀល (Afternoon Slots)
+          </h4>
+          <div id="afternoon-time-inputs" class="space-y-2"></div>
+        </div>
+
+        <div class="flex justify-between items-center pt-3 border-t">
+          <button onclick="resetCurrentLevelTimeToDefault()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg">
+            កំណត់ម៉ោងដើមឡើងវិញ
+          </button>
+          <div class="flex gap-2">
+            <button onclick="closeTimeSettingModal()" class="px-4 py-2 bg-slate-100 text-xs font-bold rounded-lg">បោះបង់</button>
+            <button onclick="saveCustomTimeSlots()" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg shadow">រក្សាទុកម៉ោងថ្មី</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT SLOT -->
+  <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+      <div class="bg-indigo-900 text-white px-5 py-4 flex justify-between items-center">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square text-amber-400"></i> កែសម្រួល / ចាត់តាំងម៉ោងបង្រៀន
+        </h3>
+        <button onclick="closeEditModal()" class="text-indigo-200 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-2">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <strong class="text-slate-700">ថ្នាក់៖</strong>
+              <select id="modal-class-select" class="bg-white border border-slate-300 text-indigo-700 font-bold p-1 rounded text-xs focus:ring-1 focus:ring-indigo-500">
+              </select>
+            </div>
+            <div>
+              <strong>ថ្ងៃ៖</strong> <span id="modal-day" class="text-slate-800 font-bold"></span> | 
+              <strong>ម៉ោង៖</strong> <span id="modal-time" class="text-slate-800 font-bold"></span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">មុខវិជ្ជាបង្រៀន (Subject)៖</label>
+          <div class="flex gap-2">
+            <select id="modal-subject-preset" onchange="onModalSubjectPresetChange()" class="text-xs p-2.5 border border-slate-300 rounded-lg bg-slate-50 font-medium flex-1">
+              <option value="">-- រើសមុខវិជ្ជាស្តង់ដារ --</option>
+              <optgroup label="វិទ្យាសាស្ត្រពិត">
+                <option value="គណិតវិទ្យា">គណិតវិទ្យា</option>
+                <option value="រូបវិទ្យា">រូបវិទ្យា</option>
+                <option value="គីមីវិទ្យា">គីមីវិទ្យា</option>
+                <option value="ជីវវិទ្យា">ជីវវិទ្យា</option>
+                <option value="ផែនដីវិទ្យា">ផែនដីវិទ្យា</option>
+                <option value="កុំព្យូទ័រ">កុំព្យូទ័រ</option>
+              </optgroup>
+              <optgroup label="វិទ្យាសាស្ត្រសង្គម & ភាសា">
+                <option value="ភាសាខ្មែរ">ភាសាខ្មែរ</option>
+                <option value="ភាសាអង់គ្លេស">ភាសាអង់គ្លេស</option>
+                <option value="ប្រវត្តិវិទ្យា">ប្រវត្តិវិទ្យា</option>
+                <option value="ភូមិវិទ្យា">ភូមិវិទ្យា</option>
+                <option value="សីលធម៌-ពលរដ្ឋ">សីលធម៌-ពលរដ្ឋ</option>
+                <option value="ព្រះគម្ពីរ">ព្រះគម្ពីរ</option>
+              </optgroup>
+              <optgroup label="ផ្សេងៗ">
+                <option value="កសិកម្ម">កសិកម្ម</option>
+                <option value="កីឡា">កីឡា</option>
+                <option value="សិល្បៈ">សិល្បៈ</option>
+                <option value="បណ្ណាល័យ">បណ្ណាល័យ</option>
+                <option value="ទំនេរ">ទំនេរ (គ្មានម៉ោង)</option>
+              </optgroup>
+            </select>
+            <input type="text" id="modal-subject-kh" placeholder="ឬវាយឈ្មោះផ្ទាល់..." class="w-1/3 text-xs p-2.5 border border-slate-300 rounded-lg font-medium">
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-xs font-bold text-slate-700">លោកគ្រូ/អ្នកគ្រូទទួលបន្ទុក៖</label>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="findFreeTeachersForSlot()" class="text-[11px] text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-300 px-2 py-0.5 rounded font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> រកគ្រូទំនេរ
+              </button>
+              <button type="button" onclick="unassignTeacherFromSlot()" class="text-[11px] text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 px-2 py-0.5 rounded font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-user-xmark"></i> ដកគ្រូចេញ
+              </button>
+            </div>
+          </div>
+          <select id="modal-teacher" onchange="checkModalTeacherConflict()" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white font-medium">
+          </select>
+          <div id="modal-free-hint" class="text-[11px] mt-2"></div>
+        </div>
+
+        <div id="modal-clash-warning" class="hidden p-3 bg-rose-50 border border-rose-300 rounded-lg text-rose-700 text-xs space-y-1">
+          <div class="font-bold flex items-center gap-1.5 text-rose-800">
+            <i class="fa-solid fa-triangle-exclamation"></i> ព្រមាន៖ ជាន់ម៉ោងបង្រៀន!
+          </div>
+          <p id="modal-clash-detail" class="text-rose-600 leading-relaxed"></p>
+        </div>
+
+        <div class="flex justify-between items-center pt-3 border-t border-slate-200">
+          <button onclick="clearCurrentSlotEntirely()" class="px-3 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold rounded-lg transition flex items-center gap-1">
+            <i class="fa-solid fa-trash-can"></i> លុបម៉ោងនេះ (ទំនេរ)
+          </button>
+          <div class="flex gap-2">
+            <button onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">បោះបង់</button>
+            <button onclick="saveEditModal()" id="btn-save-slot" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow">
+              <i class="fa-solid fa-check"></i> រក្សាទុក
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT TEACHER -->
+  <div id="teacherModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+      <div class="bg-purple-900 text-white px-5 py-4 flex justify-between items-center">
+        <h3 id="teacherModalTitle" class="font-bold text-base flex items-center gap-2">
+          <i class="fa-solid fa-user-pen text-amber-300"></i> កែសម្រួលព័ត៌មានគ្រូ
+        </h3>
+        <button onclick="closeTeacherModal()" class="text-purple-200 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">ឈ្មោះលោកគ្រូ/អ្នកគ្រូ *</label>
+          <input type="text" id="inputTeacherName" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg font-bold text-slate-800">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">កម្រិតថ្នាក់ដែលត្រូវបង្រៀន *</label>
+          <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="chk-grade-1-6" value="1-6" class="rounded text-purple-600">
+              <span class="font-semibold text-slate-700">ថ្នាក់ទី ១ - ៦</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="chk-grade-7-8" value="7-8" class="rounded text-purple-600">
+              <span class="font-semibold text-slate-700">ថ្នាក់ទី ៧ - ៨</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="chk-grade-9-10" value="9-10" class="rounded text-purple-600">
+              <span class="font-semibold text-slate-700">ថ្នាក់ទី ៩ - ១០</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="chk-grade-11-12" value="11-12" class="rounded text-purple-600">
+              <span class="font-semibold text-slate-700">ថ្នាក់ទី ១១ - ១២</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">មុខវិជ្ជាជំនាញ (បំបែកដោយក្បៀស ,) *</label>
+          <input type="text" id="inputTeacherSubjects" placeholder="ឧ. គណិតវិទ្យា, រូបវិទ្យា" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t">
+          <button onclick="closeTeacherModal()" class="px-4 py-2 bg-slate-100 text-xs font-bold rounded-lg">បោះបង់</button>
+          <button onclick="saveTeacher()" class="px-4 py-2 bg-purple-700 text-white text-xs font-bold rounded-lg shadow">រក្សាទុក</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl transform translate-y-20 opacity-0 transition duration-300 z-50 flex items-center gap-2">
+    <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+    <span id="toast-msg">សារជូនដំណឹង</span>
+  </div>
+
+  <script>
+    // ==========================================
+    // ១. កំណត់រចនាសម្ព័ន្ធ Firebase របស់លោកគ្រូ
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCQ3Lv2JxxoDFa0C50C5c2hM85VJ9LiNyc",
+      authDomain: "school-system-ahfw.firebaseapp.com",
+      projectId: "school-system-ahfw",
+      storageBucket: "school-system-ahfw.firebasestorage.app",
+      messagingSenderId: "449016998134",
+      appId: "1:449016998134:web:ff38ec1e01035abcbaa4d7",
+      measurementId: "G-H3W1WW3NQL"
+    };
+
+    // Initialize Firebase & Cloud Firestore
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const TIMETABLE_DOC = db.collection("school_data").doc("timetable_master");
+
+    const DEFAULT_SECONDARY_MORNING = [
+      { num: "១", time: "07:30 - 08:20", label: "ម៉ោងទី ១ (ព្រឹក)" },
+      { num: "២", time: "08:20 - 09:10", label: "ម៉ោងទី ២ (ព្រឹក)" },
+      { num: "៣", time: "09:30 - 10:20", label: "ម៉ោងទី ៣ (ព្រឹក)" },
+      { num: "៤", time: "10:20 - 11:10", label: "ម៉ោងទី ៤ (ព្រឹក)" },
+    ];
+    const DEFAULT_SECONDARY_AFTERNOON = [
+      { num: "៥", time: "01:30 - 02:30", label: "ម៉ោងទី ៥ (រសៀល)" },
+      { num: "៦", time: "02:30 - 03:30", label: "ម៉ោងទី ៦ (រសៀល)" },
+      { num: "៧", time: "03:30 - 04:30", label: "ម៉ោងទី ៧ (រសៀល)" },
+      { num: "៨", time: "04:30 - 05:30", label: "ម៉ោងទី ៨ (រសៀល)" },
+    ];
+
+    const DEFAULT_PRIMARY_MORNING = [
+      { num: "១", time: "07:00 - 07:45", label: "ម៉ោងទី ១ (ព្រឹក)" },
+      { num: "២", time: "07:45 - 08:30", label: "ម៉ោងទី ២ (ព្រឹក)" },
+      { num: "៣", time: "09:00 - 09:45", label: "ម៉ោងទី ៣ (ព្រឹក)" },
+    ];
+    const DEFAULT_PRIMARY_AFTERNOON = [
+      { num: "៥", time: "01:30 - 02:15", label: "ម៉ោងទី ៥ (រសៀល)" },
+      { num: "៦", time: "02:15 - 03:00", label: "ម៉ោងទី ៦ (រសៀល)" },
+      { num: "៧", time: "03:15 - 04:00", label: "ម៉ោងទី ៧ (រសៀល)" },
+    ];
+
+    const DAYS = ["ចន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ"];
+
+    const DEFAULT_CLASSES = [
+      "1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B", "5A", "5B", "6A", "6B",
+      "7A", "7B", "8A", "8B", "9A", "9B", "10A", "10B", "11A", "11B", "12A"
+    ];
+
+    const DEFAULT_TEACHERS = [
+      "Touch Savoeun", "El Sreylin", "Von Sreynich", "Heng Chantha", "San Pisey",
+      "Hourhay Pheakdey", "Sorn Sreynich", "Ngin Menghouy", "Khon Reasey", "Him Chean",
+      "Sok Soth", "Kroem Dalin", "Mork Sareth", "Kea Sokhoeu", "Chim Kunthy",
+      "Nouv Chamroeun", "Heng Seng Ang", "Som Vath", "Nget Phalla", "Sien Sela",
+      "Khin Sreymom", "Say Sreynet", "Ang Khorn", "San Sreypov", "Meak Sreypich",
+      "Dom Danet", "Nget Darly", "Sok Ty"
+    ];
+
+    const STANDARD_SUBJECTS = [
+      "គណិតវិទ្យា", "រូបវិទ្យា", "គីមីវិទ្យា", "ជីវវិទ្យា", "ផែនដីវិទ្យា",
+      "ភាសាខ្មែរ", "ភាសាអង់គ្លេស", "ប្រវត្តិវិទ្យា", "ភូមិវិទ្យា", "សីលធម៌-ពលរដ្ឋ",
+      "កុំព្យូទ័រ", "កីឡា", "សិល្បៈ", "កសិកម្ម", "ព្រះគម្ពីរ", "បណ្ណាល័យ", "សុខភាពសិក្សា"
+    ];
+
+    const SUBJECT_ALIASES = {
+      "គណិត": "គណិតវិទ្យា", "Math": "គណិតវិទ្យា", "M": "គណិតវិទ្យា",
+      "រូប": "រូបវិទ្យា", "Physic": "រូបវិទ្យា", "Physics": "រូបវិទ្យា", "P": "រូបវិទ្យា",
+      "គីមី": "គីមីវិទ្យា", "Chemistry": "គីមីវិទ្យា", "C": "គីមីវិទ្យា", "Chi": "គីមីវិទ្យា",
+      "ជីវ": "ជីវវិទ្យា", "Biology": "ជីវវិទ្យា", "Bio": "ជីវវិទ្យា", "Bi": "ជីវវិទ្យា",
+      "ផែនដី": "ផែនដីវិទ្យា", "Earth": "ផែនដីវិទ្យា", "Es": "ផែនដីវិទ្យា",
+      "ពលរដ្ឋ": "សីលធម៌-ពលរដ្ឋ", "Moral": "សីលធម៌-ពលរដ្ឋ", "Mo": "សីលធម៌-ពលរដ្ឋ",
+      "ប្រវត្តិ": "ប្រវត្តិវិទ្យា", "History": "ប្រវត្តិវិទ្យា", "H": "ប្រវត្តិវិទ្យា",
+      "ភូមិ": "ភូមិវិទ្យា", "Giography": "ភូមិវិទ្យា", "Geography": "ភូមិវិទ្យា", "G": "ភូមិវិទ្យា",
+      "អង់គ្លេស": "ភាសាអង់គ្លេស", "English": "ភាសាអង់គ្លេស", "Eng": "ភាសាអង់គ្លេស",
+      "ខ្មែរ": "ភាសាខ្មែរ", "Khmer": "ភាសាខ្មែរ", "Kh": "ភាសាខ្មែរ",
+      "Computour": "កុំព្យូទ័រ", "Computer": "កុំព្យូទ័រ", "Com": "កុំព្យូទ័រ",
+      "Sport": "កីឡា", "Art": "សិល្បៈ", "Bible": "ព្រះគម្ពីរ"
+    };
+
+    let appData = {
+      records: [],
+      classes: DEFAULT_CLASSES,
+      teachers: DEFAULT_TEACHERS,
+      days: DAYS
+    };
+
+    let timeConfig = {
+      secondary: {
+        morning: DEFAULT_SECONDARY_MORNING,
+        afternoon: DEFAULT_SECONDARY_AFTERNOON
+      },
+      primary: {
+        morning: DEFAULT_PRIMARY_MORNING,
+        afternoon: DEFAULT_PRIMARY_AFTERNOON
+      }
+    };
+
+    let teacherSubjectsMap = {};
+    let teacherGradesMap = {};
+    let currentSelectedClass = "7A";
+    let currentGradeFilter = "7-8";
+    let currentTeacherSubjectFilter = "ALL";
+    let selectedEditingSlot = null;
+    let isEditingExistingTeacher = false;
+    let originalEditingTeacherName = "";
+
+    function cleanTimeStr(str) {
+      if (!str) return '';
+      return String(str).replace(/\s+/g, '').replace(/0(\d):/g, '$1:');
+    }
+
+    function extractGradeNum(className) {
+      if (!className) return 0;
+      let s = String(className).trim();
+      const khmerNumerals = {'០':0, '១':1, '២':2, '៣':3, '៤':4, '៥':5, '៦':6, '៧':7, '៨':8, '៩':9};
+      s = s.replace(/[០-៩]/g, d => khmerNumerals[d]);
+      const match = s.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    }
+
+    function getGradeGroupFromClass(className) {
+      const num = extractGradeNum(className);
+      if (num >= 1 && num <= 6) return '1-6';
+      if (num === 7 || num === 8) return '7-8';
+      if (num === 9 || num === 10) return '9-10';
+      if (num === 11 || num === 12) return '11-12';
+      return 'OTHER';
+    }
+
+    function normalizeSubjectName(subj) {
+      if (!subj) return 'ទំនេរ';
+      let clean = String(subj).trim();
+      clean = clean.replace(/^(ថ្នាក់|ថ្នាក់ទី)\s*[0-9A-Za-z]+\s*[-_:/\\]*\s*/i, '');
+      clean = clean.replace(/\s*[-_:/\\]*\s*(ថ្នាក់|ថ្នាក់ទី)\s*[0-9A-Za-z]+$/i, '');
+      clean = clean.replace(/\s*\b[0-9]{1,2}[A-Za-z]?\b/g, '').trim();
+      return SUBJECT_ALIASES[clean] || clean || 'ទំនេរ';
+    }
+
+    function isInvalidTeacherName(name) {
+      const s = String(name).trim();
+      return !s || s === 'មិនទាន់មានគ្រូ' || s === 'ទំនេរ' || 
+             s.includes(':') || s.includes('-11') || s.includes('-2:00') ||
+             /^\d{1,2}-\d{1,2}/.test(s) || /^\d{1,2}[a-zA-Z]$/.test(s) ||
+             ['art','bible','math','khmer','english','science','health','sport','moral','chemistry','physic','history','geography','biology','earth','agriculture','recess','lunch'].includes(s.toLowerCase()) ||
+             /^(bio|chi|mo|h|com|eng|kh)\s*\d{1,2}[a-zA-Z]?$/i.test(s) ||
+             s === '-' || s === ':-:';
+    }
+
+    function getTeacherWorkloadCount(teacherName) {
+      if (!teacherName || isInvalidTeacherName(teacherName)) return 0;
+      return (appData.records || []).filter(r => (r.teacher || '').trim() === teacherName.trim() && r.subject_kh !== 'ទំនេរ').length;
+    }
+
+    // ==========================================
+    // ២. ប្រព័ន្ធ Sync លើ Cloud តាមរយៈ Firestore
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      listenToFirestoreChanges();
+    });
+
+    function listenToFirestoreChanges() {
+      const statusBadge = document.getElementById('sync-status-badge');
+      
+      TIMETABLE_DOC.onSnapshot((doc) => {
+        if (doc.exists) {
+          const data = doc.data();
+          if (data.appData) appData = data.appData;
+          if (data.timeConfig) timeConfig = data.timeConfig;
+          if (data.teacherSubjectsMap) teacherSubjectsMap = data.teacherSubjectsMap;
+          if (data.teacherGradesMap) teacherGradesMap = data.teacherGradesMap;
+          
+          if (statusBadge) {
+            statusBadge.className = "text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-normal flex items-center gap-1";
+            statusBadge.innerHTML = `<i class="fa-solid fa-cloud"></i> Synced`;
+          }
+
+          refreshAllUI();
+          showToast("ទិន្នន័យបានធ្វើសមកាលកម្មលើ Cloud (Synced)!");
+        } else {
+          // ប្រសិនបើមិនទាន់មានទិន្នន័យលើ Cloud ទេ ត្រូវ Push ចូលជាលើកដំបូង
+          saveAllToFirestore();
+        }
+      }, (error) => {
+        console.error("Firestore Listen Error:", error);
+        if (statusBadge) {
+          statusBadge.className = "text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-normal flex items-center gap-1";
+          statusBadge.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> មិនអាច Sync បាន`;
+        }
+        showToast("មានបញ្ហាក្នុងការទាញទិន្នន័យពី Server!", true);
+      });
+    }
+
+    async function saveAllToFirestore() {
+      const statusBadge = document.getElementById('sync-status-badge');
+      if (statusBadge) {
+        statusBadge.className = "text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-normal flex items-center gap-1 animate-pulse";
+        statusBadge.innerHTML = `<i class="fa-solid fa-rotate"></i> កំពុងរក្សាទុក...`;
+      }
+
+      try {
+        await TIMETABLE_DOC.set({
+          appData: appData,
+          timeConfig: timeConfig,
+          teacherSubjectsMap: teacherSubjectsMap,
+          teacherGradesMap: teacherGradesMap,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        if (statusBadge) {
+          statusBadge.className = "text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-normal flex items-center gap-1";
+          statusBadge.innerHTML = `<i class="fa-solid fa-cloud"></i> Synced`;
+        }
+      } catch (err) {
+        console.error("Firestore Save Error:", err);
+        showToast("បរាជ័យក្នុងការរក្សាទុកទៅ Cloud!", true);
+        if (statusBadge) {
+          statusBadge.className = "text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-normal flex items-center gap-1";
+          statusBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> រក្សាទុកមិនបាន`;
+        }
+      }
+    }
+
+    function refreshAllUI() {
+      const hasPrimary = (appData.classes || []).some(c => getGradeGroupFromClass(c) === '1-6');
+      if (!hasPrimary) {
+        appData.classes = Array.from(new Set([...DEFAULT_CLASSES, ...(appData.classes || [])]));
+      }
+
+      appData.teachers = (appData.teachers || []).filter(t => !isInvalidTeacherName(t));
+      if (appData.teachers.length < 5) {
+        appData.teachers = Array.from(new Set([...appData.teachers, ...DEFAULT_TEACHERS])).sort();
+      }
+
+      setGradeFilterAndRender(currentGradeFilter);
+      renderTeacherSubjectButtons();
+      populateTeacherDropdown();
+      renderManageTeachersTable();
+      auditConflicts();
+      renderWorkloadTable();
+    }
+
+    function getTimeSlotsForClass(className) {
+      const group = getGradeGroupFromClass(className);
+      if (group === '1-6') {
+        return timeConfig.primary;
+      }
+      return timeConfig.secondary;
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+      if (!toast || !toastMsg) return;
+      toastMsg.innerText = msg;
+      toastIcon.className = isError ? "fa-solid fa-circle-xmark text-rose-400 text-base" : "fa-solid fa-circle-check text-emerald-400 text-base";
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-rose-50', 'bg-indigo-50', 'bg-teal-50', 'bg-amber-50', 'bg-purple-50', 'border', 'font-bold');
+        btn.classList.add('text-slate-600');
+      });
+
+      const target = document.getElementById(tabId);
+      if (target) target.classList.remove('hidden');
+
+      const activeBtn = document.getElementById('btn-' + tabId);
+      if (activeBtn) {
+        activeBtn.classList.add('font-bold');
+        if (tabId === 'tab-class') activeBtn.classList.add('bg-teal-50', 'border-teal-200', 'text-teal-700');
+        if (tabId === 'tab-teacher') activeBtn.classList.add('bg-indigo-50', 'border-indigo-200', 'text-indigo-600');
+        if (tabId === 'tab-manage-teachers') activeBtn.classList.add('bg-purple-50', 'border-purple-200', 'text-purple-700');
+        if (tabId === 'tab-clash') activeBtn.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-600');
+        if (tabId === 'tab-workload') activeBtn.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-700');
+      }
+    }
+
+    function setGradeFilterAndRender(grp) {
+      currentGradeFilter = grp;
+      document.querySelectorAll('.grade-filter-btn').forEach(b => {
+        b.className = "grade-filter-btn px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition";
+      });
+      const activeBtn = document.getElementById(`btn-grp-${grp}`);
+      if (activeBtn) {
+        activeBtn.className = "grade-filter-btn px-3 py-1 rounded-md bg-teal-600 text-white font-bold transition shadow-sm";
+      }
+
+      renderClassButtons();
+    }
+
+    function renderClassButtons() {
+      const container = document.getElementById('class-buttons-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      let filteredClasses = appData.classes || [];
+      if (currentGradeFilter !== 'ALL') {
+        filteredClasses = (appData.classes || []).filter(c => getGradeGroupFromClass(c) === currentGradeFilter);
+      }
+
+      if (filteredClasses.length === 0) {
+        container.innerHTML = `<span class="text-xs text-slate-400 italic py-1">មិនទាន់មានថ្នាក់ក្នុងកម្រិតនេះនៅឡើយទេ</span>`;
+        return;
+      }
+
+      if (!filteredClasses.includes(currentSelectedClass)) {
+        currentSelectedClass = filteredClasses[0];
+      }
+
+      filteredClasses.forEach(c => {
+        const btn = document.createElement('button');
+        const isSelected = c === currentSelectedClass;
+        btn.className = isSelected 
+          ? "px-3.5 py-1.5 bg-teal-700 text-white font-bold text-xs rounded-lg shadow transition flex items-center gap-1"
+          : "px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 transition flex items-center gap-1";
+        
+        btn.innerHTML = `ថ្នាក់ ${c}`;
+        btn.onclick = () => {
+          currentSelectedClass = c;
+          renderClassButtons();
+          renderClassTimetable();
+        };
+        container.appendChild(btn);
+      });
+
+      renderClassTimetable();
+    }
+
+    function renderClassTimetable() {
+      const cName = currentSelectedClass;
+      document.getElementById('class-view-name').innerText = 'កាលវិភាគ ថ្នាក់ ' + cName;
+
+      const currentSlots = getTimeSlotsForClass(cName);
+      const cRecords = (appData.records || []).filter(r => r.class === cName);
+      const tbody = document.getElementById('class-timetable-body');
+      tbody.innerHTML = '';
+
+      const morningHeader = document.createElement('tr');
+      morningHeader.className = "bg-sky-100/80 font-bold text-sky-900 text-xs";
+      morningHeader.innerHTML = `<td colspan="6" class="py-1.5 px-3 text-left"><i class="fa-solid fa-sun text-amber-500 mr-1.5"></i> វេនពេលព្រឹក (Morning)</td>`;
+      tbody.appendChild(morningHeader);
+
+      currentSlots.morning.forEach(slot => {
+        appendClassSlotRow(tbody, cName, slot, cRecords);
+      });
+
+      const lunchRow = document.createElement('tr');
+      lunchRow.className = "bg-slate-100 text-slate-500 text-[11px] font-semibold border-y border-slate-200";
+      lunchRow.innerHTML = `<td colspan="6" class="py-1 text-center bg-slate-100"><i class="fa-solid fa-utensils text-slate-400 mr-1"></i> សម្រាកអាហារថ្ងៃត្រង់ (Lunch Break)</td>`;
+      tbody.appendChild(lunchRow);
+
+      const afternoonHeader = document.createElement('tr');
+      afternoonHeader.className = "bg-amber-100/80 font-bold text-amber-900 text-xs";
+      afternoonHeader.innerHTML = `<td colspan="6" class="py-1.5 px-3 text-left"><i class="fa-solid fa-cloud-sun text-orange-500 mr-1.5"></i> វេនពេលរសៀល (Afternoon)</td>`;
+      tbody.appendChild(afternoonHeader);
+
+      currentSlots.afternoon.forEach(slot => {
+        appendClassSlotRow(tbody, cName, slot, cRecords);
+      });
+    }
+
+    function appendClassSlotRow(tbody, cName, slot, cRecords) {
+      const tr = document.createElement('tr');
+      const tdTime = document.createElement('td');
+      
+      tdTime.className = "p-2 font-bold text-slate-700 bg-slate-50 border border-slate-200 text-center text-xs";
+      tdTime.innerHTML = `
+        <div class="text-[11px] font-bold text-slate-800">${slot.label}</div>
+        <div class="text-[10px] text-slate-500 font-medium">${slot.time}</div>
+      `;
+      tr.appendChild(tdTime);
+
+      DAYS.forEach(day => {
+        const td = document.createElement('td');
+        td.className = "p-1.5 border border-slate-200 align-middle grid-cell min-h-[60px]";
+
+        let match = cRecords.find(r => r.day === day && cleanTimeStr(r.time) === cleanTimeStr(slot.time));
+
+        const currentSubject = match ? match.subject_kh : 'ទំនេរ';
+        const currentTeacher = match ? match.teacher : 'មិនទាន់មានគ្រូ';
+
+        const isFree = !currentSubject || currentSubject === 'ទំនេរ';
+        const hasNoTeacher = (!currentTeacher || currentTeacher === 'មិនទាន់មានគ្រូ' || currentTeacher === 'ទំនេរ') && !isFree;
+        
+        const teacherClashes = (appData.records || []).filter(r => 
+          r.day === day && 
+          cleanTimeStr(r.time) === cleanTimeStr(slot.time) && 
+          (r.teacher || '').trim() === (currentTeacher || '').trim() && 
+          currentTeacher && 
+          currentTeacher !== 'មិនទាន់មានគ្រូ' && 
+          currentTeacher !== 'ទំនេរ'
+        );
+        const hasClash = teacherClashes.length > 1;
+
+        let cardBg = 'bg-white border-slate-200 text-slate-800';
+        if (hasClash) cardBg = 'bg-rose-50 border-rose-300 text-rose-900 shadow-sm';
+        else if (hasNoTeacher) cardBg = 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm';
+        else if (isFree) cardBg = 'bg-slate-50 border-dashed border-slate-200 text-slate-400';
+
+        let teacherDisplayHtml = '';
+        if (hasNoTeacher) {
+          teacherDisplayHtml = `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded"><i class="fa-solid fa-plus text-[9px]"></i> រើសគ្រូ</span>`;
+        } else if (!isFree) {
+          teacherDisplayHtml = `
+            <div class="mt-1 flex items-center justify-between text-xs font-bold text-indigo-900 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded shadow-2xs">
+              <span class="truncate"><i class="fa-solid fa-user-tie text-[10px] text-indigo-600 mr-1"></i>${currentTeacher}</span>
+              ${hasClash ? '<span class="text-[9px] bg-rose-600 text-white px-1 rounded font-bold ml-1 animate-pulse">ជាន់</span>' : ''}
+            </div>
+          `;
+        } else {
+          teacherDisplayHtml = `<span class="text-[10px] text-slate-300 italic">+ បន្ថែមមុខវិជ្ជា</span>`;
+        }
+
+        td.onclick = function() {
+          openEditModal(cName, day, slot.time, currentSubject, currentTeacher);
+        };
+
+        td.innerHTML = `
+          <div class="p-2 rounded-xl border text-left ${cardBg} hover:border-teal-500 transition shadow-2xs">
+            <div class="font-extrabold text-xs flex justify-between items-center text-slate-800">
+              <span class="${isFree ? 'font-normal italic text-slate-400' : ''}">${normalizeSubjectName(currentSubject)}</span>
+              ${hasClash ? '<i class="fa-solid fa-triangle-exclamation text-rose-600"></i>' : ''}
+            </div>
+            ${teacherDisplayHtml}
+          </div>
+        `;
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    }
+
+    function renderTeacherSubjectButtons() {
+      const container = document.getElementById('teacher-subject-buttons-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const allBtn = document.createElement('button');
+      allBtn.className = currentTeacherSubjectFilter === 'ALL'
+        ? "px-3 py-1 bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition"
+        : "px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 transition";
+      allBtn.textContent = "គ្រប់មុខវិជ្ជាទាំងអស់";
+      allBtn.onclick = () => {
+        currentTeacherSubjectFilter = 'ALL';
+        renderTeacherSubjectButtons();
+        populateTeacherDropdown();
+      };
+      container.appendChild(allBtn);
+
+      STANDARD_SUBJECTS.forEach(subj => {
+        const btn = document.createElement('button');
+        const isSelected = currentTeacherSubjectFilter === subj;
+        btn.className = isSelected
+          ? "px-3 py-1 bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition"
+          : "px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 transition";
+        btn.textContent = subj;
+        btn.onclick = () => {
+          currentTeacherSubjectFilter = subj;
+          renderTeacherSubjectButtons();
+          populateTeacherDropdown();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function populateTeacherDropdown() {
+      const selectTeacher = document.getElementById('select-teacher');
+      if (!selectTeacher) return;
+      selectTeacher.innerHTML = '';
+
+      let teachersList = (appData.teachers || []).filter(t => !isInvalidTeacherName(t));
+
+      if (currentTeacherSubjectFilter !== 'ALL') {
+        teachersList = teachersList.filter(t => {
+          const subs = teacherSubjectsMap[t] || [];
+          return subs.includes(currentTeacherSubjectFilter);
+        });
+      }
+
+      if (teachersList.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.textContent = "-- គ្មានគ្រូក្នុងជម្រើសនេះ --";
+        selectTeacher.appendChild(opt);
+        renderTeacherTimetable();
+        return;
+      }
+
+      teachersList.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        const grps = (teacherGradesMap[t] || []).join(', ');
+        const hours = getTeacherWorkloadCount(t);
+        opt.textContent = `${t} (${hours} ម៉ោង)` + (grps ? ` [ថ្នាក់ ${grps}]` : '');
+        selectTeacher.appendChild(opt);
+      });
+
+      renderTeacherTimetable();
+    }
+
+    function renderTeacherTimetable() {
+      const select = document.getElementById('select-teacher');
+      if (!select || !select.value) {
+        document.getElementById('teacher-view-name').innerText = 'សូមជ្រើសរើសឈ្មោះគ្រូ';
+        document.getElementById('teacher-view-sub').innerText = '';
+        document.getElementById('teacher-timetable-body').innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">សូមជ្រើសរើសឈ្មោះគ្រូខាងលើដើម្បីមើលកាលវិភាគ</td></tr>';
+        return;
+      }
+
+      const tName = select.value.trim();
+      const tRecords = (appData.records || []).filter(r => (r.teacher || '').trim() === tName && r.subject_kh !== 'ទំនេរ');
+      const uniqueClasses = Array.from(new Set(tRecords.map(r => r.class))).sort();
+      const subjects = teacherSubjectsMap[tName] ? teacherSubjectsMap[tName].join(', ') : 'ទូទៅ';
+      const grades = teacherGradesMap[tName] && teacherGradesMap[tName].length > 0 ? teacherGradesMap[tName].join(', ') : 'ទូទៅ';
+
+      document.getElementById('teacher-view-name').innerText = 'លោកគ្រូ/អ្នកគ្រូ៖ ' + tName;
+      document.getElementById('teacher-view-sub').innerText = `កម្រិតបង្រៀន៖ ថ្នាក់ ${grades} | ជំនាញ៖ ${subjects} | សរុប៖ ${tRecords.length} ម៉ោង/សប្តាហ៍ | ថ្នាក់៖ ${uniqueClasses.join(', ')}`;
+
+      const badge = document.getElementById('teacher-view-badge');
+      if (tRecords.length > 28) {
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-300";
+        badge.innerText = "លើសបន្ទុក (Overload)";
+      } else if (tRecords.length < 15) {
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300";
+        badge.innerText = "នៅសល់ម៉ោងច្រើន";
+      } else {
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-300";
+        badge.innerText = "បន្ទុកសមរម្យ (Optimal)";
+      }
+
+      const tbody = document.getElementById('teacher-timetable-body');
+      tbody.innerHTML = '';
+
+      const teachesPrimary = uniqueClasses.some(c => getGradeGroupFromClass(c) === '1-6');
+      const teacherSlots = teachesPrimary ? timeConfig.primary : timeConfig.secondary;
+      const allTeacherSlots = [...teacherSlots.morning, ...teacherSlots.afternoon];
+
+      allTeacherSlots.forEach((slot, sIdx) => {
+        if (sIdx === 0) {
+          const mHead = document.createElement('tr');
+          mHead.className = "bg-sky-100/80 font-bold text-sky-900 text-xs";
+          mHead.innerHTML = `<td colspan="6" class="py-1.5 px-3 text-left"><i class="fa-solid fa-sun text-amber-500 mr-1.5"></i> វេនពេលព្រឹក (Morning)</td>`;
+          tbody.appendChild(mHead);
+        } else if (sIdx === teacherSlots.morning.length) {
+          const aHead = document.createElement('tr');
+          aHead.className = "bg-amber-100/80 font-bold text-amber-900 text-xs";
+          aHead.innerHTML = `<td colspan="6" class="py-1.5 px-3 text-left"><i class="fa-solid fa-cloud-sun text-orange-500 mr-1.5"></i> វេនពេលរសៀល (Afternoon)</td>`;
+          tbody.appendChild(aHead);
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/80 transition";
+
+        const tdTime = document.createElement('td');
+        tdTime.className = "p-2 font-bold text-slate-700 bg-slate-50 border border-slate-200 text-center text-xs";
+        tdTime.innerHTML = `
+          <div class="text-[11px] font-bold text-slate-800">${slot.label}</div>
+          <div class="text-[10px] text-slate-500 font-medium">${slot.time}</div>
+        `;
+        tr.appendChild(tdTime);
+
+        DAYS.forEach(day => {
+          const td = document.createElement('td');
+          td.className = "p-1.5 border border-slate-200 align-middle grid-cell min-h-[55px]";
+
+          const matches = tRecords.filter(r => r.day === day && cleanTimeStr(r.time) === cleanTimeStr(slot.time));
+          
+          if (matches.length === 1) {
+            const m = matches[0];
+            td.onclick = function() {
+              openEditModal(m.class, day, slot.time, m.subject_kh, tName);
+            };
+            td.innerHTML = `
+              <div class="bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 p-2 rounded-xl text-left shadow-2xs transition">
+                <div class="font-extrabold text-indigo-900 text-xs flex justify-between items-center">
+                  <span>${normalizeSubjectName(m.subject_kh)}</span>
+                  <i class="fa-solid fa-pen text-[10px] text-indigo-400"></i>
+                </div>
+                <div class="text-[11px] text-slate-600 font-medium mt-1">ថ្នាក់ <span class="bg-indigo-200 text-indigo-800 px-1.5 py-0.2 rounded font-bold">${m.class}</span></div>
+              </div>
+            `;
+          } else if (matches.length > 1) {
+            td.className += " bg-rose-50/50";
+            td.innerHTML = `
+              <div class="space-y-1">
+                <span class="text-[10px] font-bold text-rose-700 bg-rose-200 px-1 rounded flex items-center gap-1 justify-center">
+                  <i class="fa-solid fa-triangle-exclamation"></i> ជាន់គ្នា ${matches.length} ថ្នាក់!
+                </span>
+                ${matches.map(m => `
+                  <div onclick="openEditModal('${m.class}', '${day}', '${slot.time}', '${m.subject_kh}', '${tName}')" class="bg-white border border-rose-300 p-1 rounded-lg text-left text-xs text-rose-800 shadow-2xs cursor-pointer hover:bg-rose-100 transition">
+                    <strong>ថ្នាក់ ${m.class}</strong>: ${normalizeSubjectName(m.subject_kh)} <i class="fa-solid fa-pen text-[9px] float-right mt-0.5"></i>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          } else {
+            td.onclick = function() {
+              openEditModal(currentSelectedClass, day, slot.time, 'ទំនេរ', tName);
+            };
+            td.innerHTML = `<div class="p-2 border border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50/40 text-xs font-semibold"><i class="fa-solid fa-plus text-[10px] mr-1"></i>បន្ថែម</div>`;
+          }
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openTimeSettingModal() {
+      loadLevelTimeInputs();
+      document.getElementById('timeSettingModal').classList.remove('hidden');
+    }
+
+    function closeTimeSettingModal() {
+      document.getElementById('timeSettingModal').classList.add('hidden');
+    }
+
+    function loadLevelTimeInputs() {
+      const level = document.getElementById('time-setting-level-select').value;
+      const targetConfig = level === 'PRIMARY' ? timeConfig.primary : timeConfig.secondary;
+
+      const morningContainer = document.getElementById('morning-time-inputs');
+      const afternoonContainer = document.getElementById('afternoon-time-inputs');
+
+      morningContainer.innerHTML = '';
+      afternoonContainer.innerHTML = '';
+
+      targetConfig.morning.forEach((slot, idx) => {
+        morningContainer.innerHTML += `
+          <div class="flex items-center gap-2 text-xs">
+            <span class="w-24 font-bold text-slate-600">${slot.label}:</span>
+            <input type="text" id="m_slot_${idx}" value="${slot.time}" class="flex-1 p-2 border border-slate-300 rounded-lg text-xs font-bold text-indigo-700">
+          </div>
+        `;
+      });
+
+      targetConfig.afternoon.forEach((slot, idx) => {
+        afternoonContainer.innerHTML += `
+          <div class="flex items-center gap-2 text-xs">
+            <span class="w-24 font-bold text-slate-600">${slot.label}:</span>
+            <input type="text" id="a_slot_${idx}" value="${slot.time}" class="flex-1 p-2 border border-slate-300 rounded-lg text-xs font-bold text-indigo-700">
+          </div>
+        `;
+      });
+    }
+
+    async function saveCustomTimeSlots() {
+      const level = document.getElementById('time-setting-level-select').value;
+      const targetConfig = level === 'PRIMARY' ? timeConfig.primary : timeConfig.secondary;
+
+      targetConfig.morning.forEach((slot, idx) => {
+        const val = document.getElementById(`m_slot_${idx}`).value.trim();
+        if (val) slot.time = val;
+      });
+
+      targetConfig.afternoon.forEach((slot, idx) => {
+        const val = document.getElementById(`a_slot_${idx}`).value.trim();
+        if (val) slot.time = val;
+      });
+
+      closeTimeSettingModal();
+      await saveAllToFirestore();
+      showToast("បានរក្សាទុកម៉ោងសិក្សាថ្មីទៅ Server ដោយជោគជ័យ!");
+    }
+
+    function resetCurrentLevelTimeToDefault() {
+      const level = document.getElementById('time-setting-level-select').value;
+      if (level === 'PRIMARY') {
+        timeConfig.primary = {
+          morning: JSON.parse(JSON.stringify(DEFAULT_PRIMARY_MORNING)),
+          afternoon: JSON.parse(JSON.stringify(DEFAULT_PRIMARY_AFTERNOON))
+        };
+      } else {
+        timeConfig.secondary = {
+          morning: JSON.parse(JSON.stringify(DEFAULT_SECONDARY_MORNING)),
+          afternoon: JSON.parse(JSON.stringify(DEFAULT_SECONDARY_AFTERNOON))
+        };
+      }
+      loadLevelTimeInputs();
+      showToast("បានកំណត់ម៉ោងដើមវិញ!");
+    }
+
+    function openEditModal(className, day, time, subject, teacher) {
+      let rec = (appData.records || []).find(r => r.class === className && r.day === day && cleanTimeStr(r.time) === cleanTimeStr(time));
+      if (!rec) {
+        rec = {
+          id: `${className}_${day}_${time.replace(/\s+/g, '')}`,
+          class: className,
+          day: day,
+          time: time,
+          subject_kh: subject || 'ទំនេរ',
+          teacher: teacher || 'មិនទាន់មានគ្រូ'
+        };
+        appData.records.push(rec);
+      }
+
+      selectedEditingSlot = rec;
+
+      const classSelect = document.getElementById('modal-class-select');
+      classSelect.innerHTML = '';
+      (appData.classes || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = 'ថ្នាក់ ' + c;
+        if (c === className) opt.selected = true;
+        classSelect.appendChild(opt);
+      });
+
+      document.getElementById('modal-day').innerText = day;
+      document.getElementById('modal-time').innerText = time;
+      document.getElementById('modal-subject-kh').value = normalizeSubjectName(subject);
+      document.getElementById('modal-subject-preset').value = normalizeSubjectName(subject) || '';
+
+      document.getElementById('modal-free-hint').innerText = '';
+      populateModalTeacherSelect(teacher);
+      checkModalTeacherConflict();
+
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function onModalSubjectPresetChange() {
+      const val = document.getElementById('modal-subject-preset').value;
+      if (val) {
+        document.getElementById('modal-subject-kh').value = val;
+      }
+      populateModalTeacherSelect();
+    }
+
+    function populateModalTeacherSelect(forcedSelectedTeacher) {
+      if (!selectedEditingSlot) return;
+      const currentSub = normalizeSubjectName(document.getElementById('modal-subject-kh').value || '');
+      const selectedClass = document.getElementById('modal-class-select').value || selectedEditingSlot.class;
+      const classGrp = getGradeGroupFromClass(selectedClass);
+      const selectedTeacher = forcedSelectedTeacher || (document.getElementById('modal-teacher').value || selectedEditingSlot.teacher);
+
+      const modalTeacher = document.getElementById('modal-teacher');
+      modalTeacher.innerHTML = `
+        <option value="មិនទាន់មានគ្រូ">-- មិនទាន់មានគ្រូ (Unassigned) --</option>
+        <option value="ទំនេរ">-- ម៉ោងទំនេរ (Free Slot) --</option>
+      `;
+
+      const eligible = [];
+      const others = [];
+
+      (appData.teachers || []).filter(t => !isInvalidTeacherName(t)).forEach(t => {
+        const tGrades = teacherGradesMap[t] || [];
+        const tSubs = teacherSubjectsMap[t] || [];
+
+        const matchGrade = tGrades.includes(classGrp) || tGrades.length === 0;
+        const matchSub = currentSub && currentSub !== 'ទំនេរ' ? tSubs.includes(currentSub) : true;
+
+        if (matchGrade && matchSub) eligible.push(t);
+        else others.push(t);
+      });
+
+      if (eligible.length > 0) {
+        const grp1 = document.createElement('optgroup');
+        grp1.label = `⭐ គ្រូត្រូវកម្រិត «${classGrp}» & មុខវិជ្ជា (${eligible.length} នាក់)`;
+        eligible.forEach(t => {
+          const hours = getTeacherWorkloadCount(t);
+          const opt = document.createElement('option');
+          opt.value = t;
+          opt.textContent = `⭐ ${t} (បន្ទុក៖ ${hours} ម៉ោង)`;
+          if (t === selectedTeacher) opt.selected = true;
+          grp1.appendChild(opt);
+        });
+        modalTeacher.appendChild(grp1);
+      }
+
+      if (others.length > 0) {
+        const grp2 = document.createElement('optgroup');
+        grp2.label = `គ្រូផ្សេងទៀត (${others.length} នាក់)`;
+        others.forEach(t => {
+          const hours = getTeacherWorkloadCount(t);
+          const opt = document.createElement('option');
+          opt.value = t;
+          opt.textContent = `${t} (បន្ទុក៖ ${hours} ម៉ោង)`;
+          if (t === selectedTeacher) opt.selected = true;
+          grp2.appendChild(opt);
+        });
+        modalTeacher.appendChild(grp2);
+      }
+
+      checkModalTeacherConflict();
+    }
+
+    function unassignTeacherFromSlot() {
+      document.getElementById('modal-teacher').value = 'មិនទាន់មានគ្រូ';
+      checkModalTeacherConflict();
+      document.getElementById('modal-free-hint').innerHTML = '<span class="text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200 block">បានដកឈ្មោះគ្រូចេញរួចរាល់។ សូមចុច រក្សាទុក!</span>';
+    }
+
+    function findFreeTeachersForSlot() {
+      if (!selectedEditingSlot) return;
+      const day = selectedEditingSlot.day;
+      const time = selectedEditingSlot.time;
+
+      const busyTeachers = new Set();
+      (appData.records || []).forEach(r => {
+        if (r.id !== selectedEditingSlot.id && r.day === day && cleanTimeStr(r.time) === cleanTimeStr(time) && r.teacher && r.teacher !== 'មិនទាន់មានគ្រូ' && r.teacher !== 'ទំនេរ') {
+          busyTeachers.add(r.teacher);
+        }
+      });
+
+      const freeTeachers = (appData.teachers || []).filter(t => !isInvalidTeacherName(t) && !busyTeachers.has(t));
+      const modalTeacher = document.getElementById('modal-teacher');
+      modalTeacher.innerHTML = '';
+
+      if (freeTeachers.length > 0) {
+        const grp = document.createElement('optgroup');
+        grp.label = `គ្រូទំនេរ (${freeTeachers.length} នាក់)`;
+        freeTeachers.forEach(t => {
+          const hours = getTeacherWorkloadCount(t);
+          const opt = document.createElement('option');
+          opt.value = t;
+          opt.textContent = `⭐ ${t} (បន្ទុក៖ ${hours} ម៉ោង)`;
+          grp.appendChild(opt);
+        });
+        modalTeacher.appendChild(grp);
+      }
+
+      const optUnassign = document.createElement('option');
+      optUnassign.value = "មិនទាន់មានគ្រូ";
+      optUnassign.textContent = "-- ទុកនៅទំនេរ (មិនទាន់មានគ្រូ) --";
+      modalTeacher.appendChild(optUnassign);
+
+      checkModalTeacherConflict();
+      document.getElementById('modal-free-hint').innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 font-bold block">រកឃើញគ្រូទំនេរ ${freeTeachers.length} នាក់!</span>`;
+    }
+
+    function clearCurrentSlotEntirely() {
+      if (!selectedEditingSlot) return;
+      document.getElementById('modal-subject-kh').value = 'ទំនេរ';
+      document.getElementById('modal-subject-preset').value = 'ទំនេរ';
+      document.getElementById('modal-teacher').value = 'ទំនេរ';
+      saveEditModal();
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+      selectedEditingSlot = null;
+    }
+
+    function checkModalTeacherConflict() {
+      if (!selectedEditingSlot) return;
+      const targetTeacher = document.getElementById('modal-teacher').value;
+      const warnBox = document.getElementById('modal-clash-warning');
+      const warnText = document.getElementById('modal-clash-detail');
+      const hintBox = document.getElementById('modal-free-hint');
+
+      if (!targetTeacher || targetTeacher === 'មិនទាន់មានគ្រូ' || targetTeacher === 'ទំនេរ') {
+        warnBox.classList.add('hidden');
+        if (hintBox) hintBox.innerHTML = '';
+        return;
+      }
+
+      const totalHours = getTeacherWorkloadCount(targetTeacher);
+      let workloadBadge = totalHours > 28 
+        ? `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold">លើសបន្ទុក (${totalHours} ម៉ោង)</span>`
+        : `<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">បង្រៀនបាន ${totalHours} ម៉ោង/សប្តាហ៍</span>`;
+
+      if (hintBox) {
+        hintBox.innerHTML = `
+          <div class="bg-indigo-50 border border-indigo-200 p-2 rounded-lg text-indigo-950 flex items-center justify-between">
+            <span><i class="fa-solid fa-chart-pie text-indigo-600 mr-1"></i> បន្ទុកម៉ោងបច្ចុប្បន្ន៖</span>
+            ${workloadBadge}
+          </div>
+        `;
+      }
+
+      const conflict = (appData.records || []).find(r => 
+        r.id !== selectedEditingSlot.id &&
+        r.day === selectedEditingSlot.day &&
+        cleanTimeStr(r.time) === cleanTimeStr(selectedEditingSlot.time) &&
+        (r.teacher || '').trim() === targetTeacher.trim()
+      );
+
+      if (conflict) {
+        warnBox.classList.remove('hidden');
+        warnText.innerHTML = `លោកគ្រូ/អ្នកគ្រូ <strong>${targetTeacher}</strong> កំពុងជាប់បង្រៀននៅ <strong>ថ្នាក់ ${conflict.class}</strong> ក្នុងម៉ោងនេះរួចហើយ!`;
+      } else {
+        warnBox.classList.add('hidden');
+      }
+    }
+
+    async function saveEditModal() {
+      if (!selectedEditingSlot) return;
+
+      const rawSubject = document.getElementById('modal-subject-kh').value.trim();
+      const newSubject = normalizeSubjectName(rawSubject);
+      const newTeacher = (document.getElementById('modal-teacher').value || '').trim();
+      const newClass = document.getElementById('modal-class-select').value;
+
+      selectedEditingSlot.class = newClass;
+      selectedEditingSlot.subject_kh = newSubject;
+      selectedEditingSlot.teacher = newTeacher;
+
+      closeEditModal();
+      await saveAllToFirestore();
+      showToast("បានកែសម្រួលកាលវិភាគទៅ Server រួចរាល់!");
+    }
+
+    function auditConflicts() {
+      const map = {};
+      (appData.records || []).forEach(r => {
+        const tc = (r.teacher || '').trim();
+        if (!tc || tc === 'មិនទាន់មានគ្រូ' || tc === 'ទំនេរ' || isInvalidTeacherName(tc)) return;
+        const key = r.day + '___' + cleanTimeStr(r.time) + '___' + tc;
+        if (!map[key]) map[key] = [];
+        map[key].push(r);
+      });
+
+      const conflictGroups = Object.values(map).filter(list => list.length > 1);
+      const tabBtnClash = document.getElementById('btn-tab-clash');
+      const countEl = document.getElementById('total-conflicts-num');
+      const badgeEl = document.getElementById('clash-badge');
+      const alertBox = document.getElementById('clash-alert-box');
+      const container = document.getElementById('conflicts-container');
+
+      if (countEl) countEl.innerText = conflictGroups.length;
+      if (badgeEl) badgeEl.innerText = conflictGroups.length;
+
+      if (conflictGroups.length === 0) {
+        if (tabBtnClash) tabBtnClash.classList.add('hidden');
+        if (alertBox) alertBox.classList.add('hidden');
+      } else {
+        if (tabBtnClash) tabBtnClash.classList.remove('hidden');
+        if (alertBox) alertBox.classList.remove('hidden');
+        if (container) {
+          container.innerHTML = '';
+          conflictGroups.forEach((group) => {
+            const tName = group[0].teacher;
+            const day = group[0].day;
+            const time = group[0].time;
+
+            const card = document.createElement('div');
+            card.className = "p-4 bg-white border border-rose-200 rounded-xl shadow-sm";
+            card.innerHTML = `
+              <div class="flex justify-between items-start gap-2 border-b border-rose-100 pb-2 mb-3">
+                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <i class="fa-solid fa-user text-rose-500"></i> ${tName}
+                </h4>
+                <span class="bg-rose-100 text-rose-700 text-[11px] font-bold px-2 py-0.5 rounded">
+                  ${day} | ${time}
+                </span>
+              </div>
+              <div class="space-y-2">
+                ${group.map(g => `
+                  <div class="p-2.5 bg-rose-50/60 rounded-lg border border-rose-100 flex justify-between items-center text-xs">
+                    <div><strong>ថ្នាក់ ${g.class}</strong>: ${normalizeSubjectName(g.subject_kh)}</div>
+                    <button onclick="openEditModal('${g.class}', '${day}', '${time}', '${g.subject_kh}', '${tName}')" class="px-2 py-1 bg-white hover:bg-rose-600 hover:text-white text-rose-600 border border-rose-300 rounded font-semibold text-[11px] transition">កែសម្រួល</button>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        }
+      }
+    }
+
+    function renderManageTeachersTable() {
+      const tbody = document.getElementById('manage-teachers-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const teachersList = (appData.teachers || []).filter(t => !isInvalidTeacherName(t));
+
+      if (teachersList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">មិនទាន់មានឈ្មោះគ្រូនៅឡើយទេ។ សូមចុចប៊ូតុង «+ បន្ថែមគ្រូថ្មី» ខាងលើ។</td></tr>`;
+        return;
+      }
+
+      teachersList.forEach((t, idx) => {
+        const subs = teacherSubjectsMap[t] || [];
+        const grps = teacherGradesMap[t] || [];
+        const count = getTeacherWorkloadCount(t);
+
+        const gradesHtml = grps.length > 0 ? grps.map(g => `<span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold text-[10px] mr-1">ថ្នាក់ ${g}</span>`).join('') : '<span class="text-slate-400 text-xs">មិនទាន់កំណត់</span>';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition";
+
+        const tdAction = document.createElement('td');
+        tdAction.className = "p-3 border-b text-center space-x-1";
+
+        const btnEdit = document.createElement('button');
+        btnEdit.className = "px-2.5 py-1 bg-slate-100 hover:bg-purple-600 hover:text-white text-slate-700 border border-slate-300 rounded font-semibold text-xs transition";
+        btnEdit.innerHTML = `<i class="fa-solid fa-pen"></i> កែសម្រួល`;
+        btnEdit.onclick = () => openEditTeacherModalDirect(t);
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = "px-2 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 border border-rose-300 rounded font-semibold text-xs transition";
+        btnDelete.innerHTML = `<i class="fa-solid fa-trash"></i> លុប`;
+        btnDelete.onclick = () => removeTeacherGlobally(t);
+
+        tdAction.appendChild(btnEdit);
+        tdAction.appendChild(btnDelete);
+
+        tr.innerHTML = `
+          <td class="p-3 border-b text-slate-500 font-medium text-center">${idx + 1}</td>
+          <td class="p-3 border-b font-bold text-slate-800">${t}</td>
+          <td class="p-3 border-b">${gradesHtml}</td>
+          <td class="p-3 border-b">${subs.join(', ') || '(មិនទាន់កំណត់)'}</td>
+          <td class="p-3 border-b text-center font-bold text-indigo-700">${count} ម៉ោង</td>
+        `;
+
+        tr.appendChild(tdAction);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openAddTeacherModal() {
+      isEditingExistingTeacher = false;
+      originalEditingTeacherName = "";
+      document.getElementById('teacherModalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-amber-300"></i> បន្ថែមគ្រូថ្មី';
+      document.getElementById('inputTeacherName').value = '';
+      document.getElementById('inputTeacherSubjects').value = '';
+      ['1-6', '7-8', '9-10', '11-12'].forEach(g => document.getElementById(`chk-grade-${g}`).checked = false);
+      document.getElementById('teacherModal').classList.remove('hidden');
+    }
+
+    function openEditTeacherModalDirect(tName) {
+      isEditingExistingTeacher = true;
+      originalEditingTeacherName = tName;
+      document.getElementById('teacherModalTitle').innerHTML = '<i class="fa-solid fa-user-pen text-amber-300"></i> កែសម្រួលព័ត៌មានគ្រូ';
+      document.getElementById('inputTeacherName').value = tName;
+      document.getElementById('inputTeacherSubjects').value = (teacherSubjectsMap[tName] || []).join(', ');
+
+      const assignedGrades = teacherGradesMap[tName] || [];
+      ['1-6', '7-8', '9-10', '11-12'].forEach(g => {
+        document.getElementById(`chk-grade-${g}`).checked = assignedGrades.includes(g);
+      });
+
+      document.getElementById('teacherModal').classList.remove('hidden');
+    }
+
+    function closeTeacherModal() {
+      document.getElementById('teacherModal').classList.add('hidden');
+    }
+
+    async function saveTeacher() {
+      const newName = document.getElementById('inputTeacherName').value.trim();
+      const subsRaw = document.getElementById('inputTeacherSubjects').value.trim();
+
+      if (!newName) {
+        alert("សូមបញ្ចូលឈ្មោះគ្រូ!");
+        return;
+      }
+
+      const selectedGrades = [];
+      ['1-6', '7-8', '9-10', '11-12'].forEach(g => {
+        if (document.getElementById(`chk-grade-${g}`).checked) selectedGrades.push(g);
+      });
+
+      const subjects = subsRaw ? subsRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+
+      if (!appData.teachers.includes(newName)) {
+        appData.teachers.push(newName);
+        appData.teachers.sort();
+      }
+
+      teacherSubjectsMap[newName] = subjects;
+      teacherGradesMap[newName] = selectedGrades;
+
+      closeTeacherModal();
+      await saveAllToFirestore();
+      showToast(`បានរក្សាទុកព័ត៌មានគ្រូ "${newName}" ទៅ Server!`);
+    }
+
+    async function removeTeacherGlobally(tName) {
+      if (!confirm(`តើលោកគ្រូពិតជាចង់ដកឈ្មោះគ្រូ "${tName}" ចេញពីប្រព័ន្ធមែនទេ?`)) return;
+
+      appData.teachers = appData.teachers.filter(t => t !== tName);
+      delete teacherSubjectsMap[tName];
+      delete teacherGradesMap[tName];
+
+      await saveAllToFirestore();
+      showToast(`បានដកឈ្មោះគ្រូ "${tName}" រួចរាល់!`);
+    }
+
+    function renderWorkloadTable() {
+      const searchInput = document.getElementById('workload-search');
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      const tbody = document.getElementById('workload-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const teacherList = (appData.teachers || []).filter(t => !isInvalidTeacherName(t));
+
+      if (teacherList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">មិនទាន់មានទិន្នន័យគ្រូបង្រៀននៅឡើយទេ។</td></tr>`;
+        return;
+      }
+
+      let teacherStats = teacherList.map(t => {
+        const tRecs = (appData.records || []).filter(r => (r.teacher || '').trim() === t && r.subject_kh !== 'ទំនេរ');
+        const classes = Array.from(new Set(tRecs.map(r => r.class))).filter(Boolean).sort();
+        
+        const subs = Array.isArray(teacherSubjectsMap[t]) ? teacherSubjectsMap[t] : [];
+        const grps = Array.isArray(teacherGradesMap[t]) ? teacherGradesMap[t] : [];
+
+        return {
+          name: t,
+          grades: grps,
+          count: tRecs.length,
+          classes: classes.join(', '),
+          subjects: subs.join(', ')
+        };
+      }).sort((a, b) => b.count - a.count);
+
+      let renderedCount = 0;
+
+      teacherStats.forEach((ts) => {
+        if (query && !ts.name.toLowerCase().includes(query)) return;
+
+        renderedCount++;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-200";
+
+        const gradesText = ts.grades.length > 0 
+          ? ts.grades.map(g => `<span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold text-[10px] mr-1">ថ្នាក់ ${g}</span>`).join('') 
+          : '<span class="text-slate-400 italic">ទូទៅ</span>';
+
+        const subjectsText = ts.subjects || '<span class="text-slate-400 italic">ទូទៅ</span>';
+        const classesText = ts.classes || '<span class="text-slate-400 italic">មិនទាន់មាន</span>';
+
+        let loadBadge = '';
+        if (ts.count > 28) {
+          loadBadge = '<span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-bold text-[11px] border border-rose-300">លើសបន្ទុក</span>';
+        } else if (ts.count === 0) {
+          loadBadge = '<span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-semibold text-[11px]">ទំនេរ</span>';
+        } else if (ts.count < 15) {
+          loadBadge = '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold text-[11px] border border-amber-300">នៅសល់ម៉ោង</span>';
+        } else {
+          loadBadge = '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold text-[11px] border border-emerald-300">សមរម្យ</span>';
+        }
+
+        tr.innerHTML = `
+          <td class="p-3 text-slate-500 font-medium text-center">${renderedCount}</td>
+          <td class="p-3 font-bold text-slate-800">${ts.name}</td>
+          <td class="p-3">${gradesText}</td>
+          <td class="p-3 text-indigo-700 font-medium">${subjectsText}</td>
+          <td class="p-3 text-center font-extrabold text-indigo-700 text-sm">${ts.count} ម៉ោង</td>
+          <td class="p-3">${loadBadge}</td>
+          <td class="p-3 text-slate-600 max-w-xs truncate" title="${ts.classes}">${classesText}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (renderedCount === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">រកមិនឃើញគ្រូឈ្មោះ "${query}" ឡើយ</td></tr>`;
+      }
+    }
+
+    function shareViaTelegram() {
+      const tName = document.getElementById('select-teacher').value;
+      const text = generateTeacherScheduleText(tName);
+      window.open("https://t.me/share/url?url=" + encodeURIComponent(text), '_blank');
+    }
+
+    function copyTeacherScheduleText() {
+      const tName = document.getElementById('select-teacher').value;
+      const text = generateTeacherScheduleText(tName);
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("បានចម្លងកាលវិភាគចូល Clipboard រួចរាល់!");
+      });
+    }
+
+    function generateTeacherScheduleText(tName) {
+      const tRecords = (appData.records || []).filter(r => (r.teacher || '').trim() === tName && r.subject_kh !== 'ទំនេរ');
+      let text = "📅 កាលវិភាគបង្រៀនផ្ទាល់ខ្លួន\n";
+      text += "👤 លោកគ្រូ/អ្នកគ្រូ៖ " + tName + "\n";
+      text += "⏳ បន្ទុកសរុប៖ " + tRecords.length + " ម៉ោង/សប្តាហ៍\n\n";
+
+      DAYS.forEach(day => {
+        const dayRecs = tRecords.filter(r => r.day === day);
+        if (dayRecs.length > 0) {
+          text += "🔹 ថ្ងៃ" + day + " (" + dayRecs.length + " ម៉ោង):\n";
+          dayRecs.sort((a, b) => a.time.localeCompare(b.time)).forEach(r => {
+            text += "  • " + r.time + " ➔ ថ្នាក់ " + r.class + " (" + normalizeSubjectName(r.subject_kh) + ")\n";
+          });
+          text += "\n";
+        }
+      });
+      return text;
+    }
+
+    function exportToExcel() {
+      if (typeof XLSX === 'undefined') {
+        alert("បណ្ណាល័យ Excel មិនទាន់ដំណើរការរួចរាល់ទេ។");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      appData.classes.forEach(cName => {
+        const cRecords = (appData.records || []).filter(r => r.class === cName);
+        const slots = getTimeSlotsForClass(cName);
+        const allSlots = [...slots.morning, ...slots.afternoon].map(s => s.time);
+
+        const rows = [
+          ["កាលវិភាគថ្នាក់ " + cName],
+          ["ម៉ោង / Time", "ចន្ទ (Mon)", "អង្គារ (Tue)", "ពុធ (Wed)", "ព្រហស្បតិ៍ (Thu)", "សុក្រ (Fri)"]
+        ];
+
+        allSlots.forEach(t => {
+          const subRow = [t];
+          const teacherRow = [""];
+          DAYS.forEach(day => {
+            const match = cRecords.find(r => cleanTimeStr(r.time) === cleanTimeStr(t) && r.day === day);
+            subRow.push(match ? normalizeSubjectName(match.subject_kh) : "");
+            teacherRow.push(match ? match.teacher : "");
+          });
+          rows.push(subRow);
+          rows.push(teacherRow);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, cName);
+      });
+
+      XLSX.writeFile(wb, "កាលវិភាគ_ស្វ័យប្រវត្តិ.xlsx");
+      showToast("បានទាញយកឯកសារកាលវិភាគជា Excel រួចរាល់!");
+    }
+
+    function downloadSampleExcel() {
+      if (typeof XLSX === 'undefined') {
+        alert("បណ្ណាល័យ Excel មិនទាន់ដំណើរការរួចរាល់ទេ។");
+        return;
+      }
+      const wb = XLSX.utils.book_new();
+      const sampleData = [
+        ["class", "day", "time", "subject_kh", "teacher"],
+        ["7A", "ចន្ទ", "07:30 - 08:20", "គណិតវិទ្យា", "Touch Savoeun"],
+        ["7A", "ចន្ទ", "08:20 - 09:10", "គីមីវិទ្យា", "Sorn Sreynich"],
+        ["7A", "ចន្ទ", "09:30 - 10:20", "រូបវិទ្យា", "Ngin Menghouy"],
+        ["7A", "ចន្ទ", "10:20 - 11:10", "ជីវវិទ្យា", "Chim Kunthy"],
+        ["7A", "ចន្ទ", "01:30 - 02:30", "ភាសាខ្មែរ", "Kroem Dalin"],
+        ["7A", "ចន្ទ", "02:30 - 03:30", "ភាសាអង់គ្លេស", "Mork Sareth"],
+        ["7A", "ចន្ទ", "03:30 - 04:30", "កុំព្យូទ័រ", "Heng Seng Ang"],
+        ["1A", "ចន្ទ", "07:00 - 07:45", "ភាសាខ្មែរ", "Som Vath"]
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(sampleData);
+      XLSX.utils.book_append_sheet(wb, ws, "Timetable_Sample");
+      XLSX.writeFile(wb, "គំរូកាលវិភាគ_បឋម_និង_មធ្យម.xlsx");
+      showToast("បានទាញយកឯកសារគំរូរួចរាល់!");
+    }
+
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          let parsedRecords = [];
+          const teachersFound = new Set(appData.teachers || []);
+          const classesFound = new Set(appData.classes || []);
+
+          workbook.SheetNames.forEach(sheetName => {
+            const trimmedSheet = sheetName.trim();
+            if (trimmedSheet.toLowerCase().includes('គ្រូក្រៅម៉ោង') || trimmedSheet.toLowerCase().includes('summary')) return;
+
+            const ws = workbook.Sheets[sheetName];
+            const jsonSheet = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+            if (!jsonSheet || jsonSheet.length === 0) return;
+            classesFound.add(trimmedSheet);
+
+            let dayCols = { 1: 'ចន្ទ', 2: 'អង្គារ', 3: 'ពុធ', 4: 'ព្រហស្បតិ៍', 5: 'សុក្រ' };
+
+            jsonSheet.forEach((row, rIdx) => {
+              if (!row || row.length === 0) return;
+              const col0 = String(row[0] || '').trim();
+
+              if (/\d{1,2}[:.]\d{2}/.test(col0)) {
+                if (col0.includes('សម្រាក') || col0.includes('អាហារ')) return;
+
+                for (let c = 1; c <= 5; c++) {
+                  const day = dayCols[c] || 'ចន្ទ';
+                  const cellVal1 = String(row[c] || '').trim();
+                  
+                  let nextRowVal = "";
+                  if (jsonSheet[rIdx + 1] && jsonSheet[rIdx + 1][c]) {
+                    nextRowVal = String(jsonSheet[rIdx + 1][c]).trim();
+                  }
+
+                  let sub = normalizeSubjectName(cellVal1);
+                  let teacher = nextRowVal;
+
+                  if (teacher && !isInvalidTeacherName(teacher)) {
+                    teachersFound.add(teacher);
+                  } else {
+                    teacher = 'មិនទាន់មានគ្រូ';
+                  }
+
+                  if (sub && sub !== 'ទំនេរ') {
+                    parsedRecords.push({
+                      id: `${trimmedSheet}_${rIdx}_${c}`,
+                      class: trimmedSheet,
+                      day: day,
+                      time: col0.replace(/\n/g, ' '),
+                      subject_kh: sub,
+                      teacher: teacher
+                    });
+                  }
+                }
+              }
+            });
+          });
+
+          if (parsedRecords.length > 0) {
+            appData.records = parsedRecords;
+            appData.classes = Array.from(classesFound);
+            appData.teachers = Array.from(teachersFound).filter(t => !isInvalidTeacherName(t)).sort();
+
+            await saveAllToFirestore();
+            showToast(`ជោគជ័យ! បាន Upload ទិន្នន័យកាលវិភាគចំនួន ${parsedRecords.length} ម៉ោងឡើង Cloud!`);
+          } else {
+            alert("មិនអាចទាញទិន្នន័យពី Excel បានទេ! សូមប្រាកដថាជួរឈរខាងឆ្វេងមានម៉ោង និង Sheet មានឈ្មោះថ្នាក់។");
+          }
+        } catch (err) {
+          alert("មានបញ្ហាក្នុងការអាន Excel: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      event.target.value = '';
+    }
+
+    async function cleanAndResetAllData() {
+      if (!confirm("តើលោកគ្រូចង់ Reset ប្រព័ន្ធ និងសម្អាតទិន្នន័យលើ Cloud ឡើងវិញមែនទេ?")) return;
+      appData.records = [];
+      await saveAllToFirestore();
+      location.reload();
+    }
+  </script>
+
+</body>
+</html>
